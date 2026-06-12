@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Saída local (CSVs e arquivos brutos)
+saida/
+
+# Streamlit local cache
+.streamlit/
+
+# Sistema
+.DS_Store
+Thumbs.db
