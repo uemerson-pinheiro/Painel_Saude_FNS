@@ -206,13 +206,20 @@ def _parsear_planilha_detalhada(conteudo_bytes, ano, mes):
     # mapeia índice de coluna -> nome (ignora colunas em branco)
     colunas = {i: str(c).strip() for i, c in enumerate(cabecalhos) if str(c).strip()}
 
+    # índice da coluna "Nº OB" para identificar lançamentos reais
+    ob_idx = next((i for i, n in colunas.items() if "ob" in n.lower() and "nº" in n.lower()), None)
+
     linhas = []
     for r in range(header_row_idx + 1, sh.nrows):
         valores = sh.row_values(r)
         if not any(str(v).strip() for v in valores):
             continue  # linha vazia
-        if str(valores[0]).strip().lower().startswith("total"):
-            continue  # linha de total geral, não é um lançamento individual
+        # descarta subtotais/totais: qualquer célula que começa com "total"
+        if any(str(v).strip().lower().startswith("total") for v in valores):
+            continue
+        # descarta linhas sem Nº OB (agregações, não lançamentos individuais)
+        if ob_idx is not None and not str(valores[ob_idx]).strip():
+            continue
 
         linha = {"ano": ano, "mes": mes}
         for idx, nome_col in colunas.items():

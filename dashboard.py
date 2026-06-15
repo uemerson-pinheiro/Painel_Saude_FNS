@@ -265,11 +265,17 @@ def load_obs(meses: tuple, co_mun_ibge: str, nome_mun: str,
             if hr is None:
                 continue
             cols = {i: str(c).strip() for i, c in enumerate(sh.row_values(hr)) if str(c).strip()}
+            # índice da coluna "Nº OB" para validar linhas reais de lançamento
+            ob_idx = next((i for i, n in cols.items() if "ob" in n.lower() and "nº" in n.lower()), None)
             for r in range(hr + 1, sh.nrows):
                 row = sh.row_values(r)
                 if not any(str(v).strip() for v in row):
                     continue
-                if str(row[0]).strip().lower().startswith("total"):
+                # descarta qualquer linha onde ALGUMA célula contenha "total" (subtotais/totais gerais)
+                if any(str(v).strip().lower().startswith("total") for v in row):
+                    continue
+                # descarta linhas sem Nº OB (são agregações, não lançamentos individuais)
+                if ob_idx is not None and not str(row[ob_idx]).strip():
                     continue
                 ln = {"Ano": ano, "Mês": mes}
                 for idx, nome in cols.items():
