@@ -478,37 +478,36 @@ with tab2:
         df_p = df_pag.copy()
 
         # Converter numéricos
-        num_cols = [c for c in df_p.columns if c not in
-                    ["nuParcela","sgUf","noMunicipio","dsEsferaAdministrativa",
-                     "dsClassificacaoQualidadeEsfEap","dsClassificacaoVinculoEsfEap",
-                     "dsClassificacaoQualidadeEmulti"]]
-        for c in num_cols:
-            df_p[c] = pd.to_numeric(df_p[c], errors="coerce").fillna(0)
+        cols_texto = {"nuParcela","sgUf","noMunicipio","dsEsferaAdministrativa",
+                      "dsClassificacaoQualidadeEsfEap","dsClassificacaoVinculoEsfEap",
+                      "dsClassificacaoQualidadeEmulti"}
+        for c in df_p.columns:
+            if c not in cols_texto:
+                df_p[c] = pd.to_numeric(df_p[c], errors="coerce").fillna(0)
 
         if "nuParcela" in df_p.columns:
             df_p["label"] = df_p["nuParcela"].apply(mes_label)
 
-        # ── Totais por programa
-        prog_cols = {
-            "vlTotalEsf":             "ESF",
-            "vlTotalEmulti":          "eMulti",
-            "vlTotalAcsDireto":       "ACS",
-            "vlPagamentoEsb40h":      "Saúde Bucal",
-            "vlPagamentoCeoMunicipal":"CEO",
-            "vlPagamentoLrpdMunicipal":"LRPD",
-        }
-        cols_ok = {k: v for k, v in prog_cols.items() if k in df_p.columns}
+        # ── Gráfico: vlEfetivoRepasse por Programa/Mês (fonte: resumosPlanosOrcamentarios)
+        st.markdown('<div class="sec-title">Repasse Efetivo por Programa (por Mês)</div>', unsafe_allow_html=True)
+        df_r2 = df_resumo.copy()
+        df_r2["vlEfetivoRepasse"] = pd.to_numeric(df_r2["vlEfetivoRepasse"], errors="coerce").fillna(0)
+        df_r2["label"] = df_r2["nuParcela"].apply(mes_label)
 
-        if cols_ok and "label" in df_p.columns:
-            st.markdown('<div class="sec-title">Repasses por Programa (por Mês)</div>', unsafe_allow_html=True)
-            fig3 = go.Figure()
-            for i, (col, nome) in enumerate(cols_ok.items()):
-                fig3.add_trace(go.Bar(
-                    name=nome, x=df_p["label"], y=df_p[col],
-                    marker_color=PALETA[i % len(PALETA)],
-                ))
-            fig3.update_layout(barmode="stack")
-            estilo(fig3, h=360)
+        if "dsPlanoOrcamentario" in df_r2.columns:
+            df_prog_mes = (df_r2.groupby(["label", "dsPlanoOrcamentario"])["vlEfetivoRepasse"]
+                           .sum().reset_index()
+                           .sort_values("label"))
+            fig3 = px.bar(
+                df_prog_mes, x="label", y="vlEfetivoRepasse",
+                color="dsPlanoOrcamentario",
+                color_discrete_sequence=PALETA,
+                barmode="stack",
+                labels={"vlEfetivoRepasse": "Repasse Efetivo (R$)",
+                        "label": "Mês/Ano",
+                        "dsPlanoOrcamentario": "Programa"},
+            )
+            estilo(fig3, "Repasse Efetivo por Programa (por Mês)", h=400)
             fig3.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
             st.plotly_chart(fig3, use_container_width=True)
 
@@ -562,8 +561,52 @@ with tab2:
             estilo(fig6, "Equipes ESF – Credenciadas vs Homologadas vs Com Pagamento", h=300)
             st.plotly_chart(fig6, use_container_width=True)
 
-        with st.expander("📄 Ver tabela completa de pagamentos APS"):
-            st.dataframe(df_pag, use_container_width=True, hide_index=True)
+        # ── Tabelas separadas por programa
+        with st.expander("📄 Ver tabelas de pagamentos por programa"):
+
+            def _colunas_grupo(palavras, excluir=None):
+                ex = excluir or []
+                return [c for c in df_p.columns
+                        if any(p in c.lower() for p in palavras)
+                        and not any(e in c.lower() for e in ex)
+                        and c not in ("nuParcela", "label")]
+
+            GRUPOS_APS = {
+                "eSF":           _colunas_grupo(["esf"],      excluir=["esfr"]),
+                "eAP":           _colunas_grupo(["eap"]),
+                "eMulti":        _colunas_grupo(["emulti"]),
+                "eSB":           _colunas_grupo(["esb"]),
+                "CEO":           _colunas_grupo(["ceo"]),
+                "LRPD":          _colunas_grupo(["lrpd"]),
+                "ACS":           _colunas_grupo(["acs"]),
+                "UOM":           _colunas_grupo(["uom"]),
+                "SESB":          _colunas_grupo(["sesb"]),
+                "eCR":           _colunas_grupo(["ecr"]),
+                "eSFR":          _colunas_grupo(["esfr"]),
+                "UBSF":          _colunas_grupo(["ubsf"]),
+                "Microscopista": _colunas_grupo(["microsc"]),
+                "Residência":    _colunas_grupo(["resid"]),
+            }
+            # Mantém apenas grupos que têm colunas com dados
+            GRUPOS_APS = {k: v for k, v in GRUPOS_APS.items() if v}
+
+            if not GRUPOS_APS:
+                st.dataframe(df_pag, use_container_width=True, hide_index=True)
+            else:
+                tabs_prog = st.tabs(list(GRUPOS_APS.keys()))
+                for tab_g, (nome_g, cols_g) in zip(tabs_prog, GRUPOS_APS.items()):
+                    with tab_g:
+                        cols_g_ok = [c for c in cols_g if c in df_p.columns]
+                        if not cols_g_ok:
+                            st.info(f"Sem colunas para {nome_g}")
+                            continue
+                        df_show = df_p[["label"] + cols_g_ok].copy()
+                        df_show = df_show.rename(columns={"label": "Mês/Ano"})
+                        # Formatar colunas monetárias (vl*) como R$
+                        for c in cols_g_ok:
+                            if c.startswith("vl"):
+                                df_show[c] = df_show[c].apply(fmt_brl)
+                        st.dataframe(df_show, use_container_width=True, hide_index=True)
 
 
 # ══════════════════════════════════════════════
