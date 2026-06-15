@@ -295,7 +295,7 @@ _brasao_b64 = base64.b64encode(_brasao_path.read_bytes()).decode() if _brasao_pa
 with st.sidebar:
     brasao_html = (
         f'<img src="data:image/jpeg;base64,{_brasao_b64}" '
-        f'style="width:110px;border-radius:8px;margin-bottom:.6rem;">'
+        f'style="width:200px;margin-bottom:.6rem;">'
         if _brasao_b64 else ""
     )
     st.markdown(f"""
@@ -495,20 +495,31 @@ with tab2:
         df_r2["label"] = df_r2["nuParcela"].apply(mes_label)
 
         if "dsPlanoOrcamentario" in df_r2.columns:
+            # Truncar nomes longos para não sobrecarregar a legenda
             df_prog_mes = (df_r2.groupby(["label", "dsPlanoOrcamentario"])["vlEfetivoRepasse"]
                            .sum().reset_index()
                            .sort_values("label"))
+            df_prog_mes["Programa"] = df_prog_mes["dsPlanoOrcamentario"].apply(
+                lambda x: x[:35] + "…" if len(x) > 35 else x
+            )
             fig3 = px.bar(
                 df_prog_mes, x="label", y="vlEfetivoRepasse",
-                color="dsPlanoOrcamentario",
+                color="Programa",
                 color_discrete_sequence=PALETA,
                 barmode="stack",
-                labels={"vlEfetivoRepasse": "Repasse Efetivo (R$)",
-                        "label": "Mês/Ano",
-                        "dsPlanoOrcamentario": "Programa"},
+                labels={"vlEfetivoRepasse": "Repasse Efetivo (R$)", "label": "Mês/Ano"},
             )
-            estilo(fig3, "Repasse Efetivo por Programa (por Mês)", h=400)
+            estilo(fig3, "Repasse Efetivo por Programa (por Mês)", h=460)
             fig3.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
+            # Legenda abaixo do gráfico, sem sobrepor as barras
+            fig3.update_layout(
+                legend=dict(
+                    orientation="h",
+                    yanchor="top", y=-0.22,
+                    xanchor="left", x=0,
+                    font=dict(size=10),
+                )
+            )
             st.plotly_chart(fig3, use_container_width=True)
 
         # ── Classificações de qualidade
