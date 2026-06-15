@@ -285,11 +285,12 @@ with st.sidebar:
     st.markdown(f"""
     <div style="text-align:center;padding:.4rem 0 1.4rem 0;">
       <div style="font-size:1.25rem;font-weight:800;color:white;line-height:1.15;">
+       st.image("brasao_sgo.jpeg", width=200)
         Meu<br><span style="font-size:1.7rem;">SUS</span><br>
         <span style="color:{AMARELO};">Digital</span>
       </div>
       <div style="color:rgba(255,255,255,.55);font-size:.65rem;margin-top:.3rem;letter-spacing:.5px;">
-        MINISTÉRIO DA SAÚDE
+        MINISTÉRIO DA SAÚDE-MS
       </div>
     </div>
     <hr style="border-color:rgba(255,255,255,.2);margin:0 0 .8rem 0;">
