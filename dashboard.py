@@ -3,9 +3,11 @@ Painel APS – Financiamento da Saúde
 Município: São Gabriel do Oeste / MS (IBGE 500769)
 Fontes: e-Gestor APS + FNS Fundo a Fundo
 """
+import base64
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 from urllib.request import Request, urlopen
 
 import pandas as pd
@@ -281,16 +283,21 @@ def load_obs(meses: tuple, co_mun_ibge: str, nome_mun: str,
 # ──────────────────────────────────────────────────────────────
 # SIDEBAR – FILTROS
 # ──────────────────────────────────────────────────────────────
+_brasao_path = Path(__file__).parent / "brasao_sgo.jpeg"
+_brasao_b64 = base64.b64encode(_brasao_path.read_bytes()).decode() if _brasao_path.exists() else ""
+
 with st.sidebar:
+    brasao_html = (
+        f'<img src="data:image/jpeg;base64,{_brasao_b64}" '
+        f'style="width:110px;border-radius:8px;margin-bottom:.6rem;">'
+        if _brasao_b64 else ""
+    )
     st.markdown(f"""
     <div style="text-align:center;padding:.4rem 0 1.4rem 0;">
-      <div style="font-size:1.25rem;font-weight:800;color:white;line-height:1.15;">
-       st.image("brasao_sgo.jpeg", width=200)
-        Meu<br><span style="font-size:1.7rem;">SUS</span><br>
-        <span style="color:{AMARELO};">Digital</span>
-      </div>
-      <div style="color:rgba(255,255,255,.55);font-size:.65rem;margin-top:.3rem;letter-spacing:.5px;">
-        MINISTÉRIO DA SAÚDE-MS
+      {brasao_html}
+      <div style="color:rgba(255,255,255,.7);font-size:.72rem;margin-top:.4rem;
+                  letter-spacing:.6px;font-weight:600;text-transform:uppercase;">
+        Ministério da Saúde
       </div>
     </div>
     <hr style="border-color:rgba(255,255,255,.2);margin:0 0 .8rem 0;">
