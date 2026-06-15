@@ -383,6 +383,14 @@ with st.spinner("🔄 Buscando dados nas APIs do Ministério da Saúde..."):
 if not dados_ok:
     st.stop()
 
+# Ordem cronológica dos meses (nuParcela é AAAAMM, ordena numericamente)
+_labels_ord = (
+    df_resumo.drop_duplicates("nuParcela")
+    .sort_values("nuParcela")["nuParcela"]
+    .apply(mes_label)
+    .tolist()
+) if not df_resumo.empty else []
+
 # ──────────────────────────────────────────────────────────────
 # ABAS
 # ──────────────────────────────────────────────────────────────
@@ -445,6 +453,7 @@ with tab1:
                                      line=dict(color=VERMELHO, width=2.5), marker=dict(size=7)))
         estilo(fig, "Evolução Mensal dos Repasses (R$)", h=360)
         fig.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
+        fig.update_xaxes(categoryorder="array", categoryarray=_labels_ord)
         st.plotly_chart(fig, use_container_width=True)
 
     with cb:
@@ -497,8 +506,7 @@ with tab2:
         if "dsPlanoOrcamentario" in df_r2.columns:
             # Truncar nomes longos para não sobrecarregar a legenda
             df_prog_mes = (df_r2.groupby(["label", "dsPlanoOrcamentario"])["vlEfetivoRepasse"]
-                           .sum().reset_index()
-                           .sort_values("label"))
+                           .sum().reset_index())
             df_prog_mes["Programa"] = df_prog_mes["dsPlanoOrcamentario"].apply(
                 lambda x: x[:35] + "…" if len(x) > 35 else x
             )
@@ -508,6 +516,7 @@ with tab2:
                 color_discrete_sequence=PALETA,
                 barmode="stack",
                 labels={"vlEfetivoRepasse": "Repasse Efetivo (R$)", "label": "Mês/Ano"},
+                category_orders={"label": _labels_ord},
             )
             estilo(fig3, "Repasse Efetivo por Programa (por Mês)", h=460)
             fig3.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
@@ -545,6 +554,7 @@ with tab2:
                         hovertemplate=f"<b>{row['label']}</b><br>{titulo}: {q}<extra></extra>",
                     ))
                 fig.update_yaxes(visible=False, range=[0, 1.6])
+                fig.update_xaxes(categoryorder="array", categoryarray=_labels_ord)
                 estilo(fig, titulo, h=200)
                 return fig
 
@@ -568,7 +578,8 @@ with tab2:
             df_cob = df_cob.melt(id_vars="label", var_name="Tipo", value_name="Qtd")
             df_cob["Tipo"] = df_cob["Tipo"].map(cob_ok)
             fig6 = px.line(df_cob, x="label", y="Qtd", color="Tipo",
-                           color_discrete_sequence=[AZUL, LARANJA, VERDE_ESCURO], markers=True)
+                           color_discrete_sequence=[AZUL, LARANJA, VERDE_ESCURO], markers=True,
+                           category_orders={"label": _labels_ord})
             estilo(fig6, "Equipes ESF – Credenciadas vs Homologadas vs Com Pagamento", h=300)
             st.plotly_chart(fig6, use_container_width=True)
 
